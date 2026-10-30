@@ -194,12 +194,11 @@ impl Backend for UdevData {
     }
 
     fn reset_buffers(&mut self, output: &Output) {
-        if let Some(id) = output.user_data().get::<UdevOutputId>() {
-            if let Some(gpu) = self.backends.get_mut(&id.device_id) {
-                if let Some(surface) = gpu.surfaces.get_mut(&id.crtc) {
-                    surface.drm_output.reset_buffers();
-                }
-            }
+        if let Some(id) = output.user_data().get::<UdevOutputId>()
+            && let Some(gpu) = self.backends.get_mut(&id.device_id)
+            && let Some(surface) = gpu.surfaces.get_mut(&id.crtc)
+        {
+            surface.drm_output.reset_buffers();
         }
     }
 
@@ -313,10 +312,10 @@ pub fn run_udev() {
                     }
                     data.backend_data.keyboards.push(device.clone());
                 }
-            } else if let InputEvent::DeviceRemoved { ref device } = event {
-                if device.has_capability(DeviceCapability::Keyboard) {
-                    data.backend_data.keyboards.retain(|item| item != device);
-                }
+            } else if let InputEvent::DeviceRemoved { ref device } = event
+                && device.has_capability(DeviceCapability::Keyboard)
+            {
+                data.backend_data.keyboards.retain(|item| item != device);
             }
 
             data.process_input_event(&dh, event)
@@ -486,14 +485,12 @@ pub fn run_udev() {
         .primary_gpu
         .node_with_type(NodeType::Primary)
         .and_then(|x| x.ok())
+        && let Some(backend) = state.backend_data.backends.get(&primary_node)
     {
-        if let Some(backend) = state.backend_data.backends.get(&primary_node) {
-            let import_device = backend.drm_output_manager.device().device_fd().clone();
-            if supports_syncobj_eventfd(&import_device) {
-                let syncobj_state =
-                    DrmSyncobjState::new::<AnvilState<UdevData>>(&display_handle, import_device);
-                state.backend_data.syncobj_state = Some(syncobj_state);
-            }
+        let import_device = backend.drm_output_manager.device().device_fd().clone();
+        if supports_syncobj_eventfd(&import_device) {
+            let syncobj_state = DrmSyncobjState::new::<AnvilState<UdevData>>(&display_handle, import_device);
+            state.backend_data.syncobj_state = Some(syncobj_state);
         }
     }
 
